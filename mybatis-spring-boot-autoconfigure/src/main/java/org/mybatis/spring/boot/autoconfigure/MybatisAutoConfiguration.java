@@ -216,6 +216,7 @@ public class MybatisAutoConfiguration implements InitializingBean {
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
 
+      // 没有使用 @MapperScan, MapperFactoryBean and MapperScannerConfigurer 时的自动注入
       if (!AutoConfigurationPackages.has(this.beanFactory)) {
         logger.debug("Could not determine auto-configuration package, automatic mapper scanning disabled.");
         return;
@@ -228,15 +229,20 @@ public class MybatisAutoConfiguration implements InitializingBean {
         packages.forEach(pkg -> logger.debug("Using auto-configuration base package '{}'", pkg));
       }
 
+      // 初始化 扫描配置 MapperScannerConfigurer
       BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(MapperScannerConfigurer.class);
       builder.addPropertyValue("processPropertyPlaceHolders", true);
+      // 默认扫描注解
       builder.addPropertyValue("annotationClass", Mapper.class);
+      // 扫描 springBoot 启动类所在的包
       builder.addPropertyValue("basePackage", StringUtils.collectionToCommaDelimitedString(packages));
+      // 懒加载，默认为 false
       BeanWrapper beanWrapper = new BeanWrapperImpl(MapperScannerConfigurer.class);
       Stream.of(beanWrapper.getPropertyDescriptors())
           // Need to mybatis-spring 2.0.2+
           .filter(x -> x.getName().equals("lazyInitialization")).findAny()
           .ifPresent(x -> builder.addPropertyValue("lazyInitialization", "${mybatis.lazy-initialization:false}"));
+      // 注入 MapperScannerConfigurer
       registry.registerBeanDefinition(MapperScannerConfigurer.class.getName(), builder.getBeanDefinition());
     }
 
